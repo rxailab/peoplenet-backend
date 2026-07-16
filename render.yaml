@@ -1,0 +1,20 @@
+# Render Blueprint：在 Render 上一键创建 peoplenet-api Web 服务
+services:
+  - type: web
+    name: peoplenet-api
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: MONGODB_URI          # MongoDB Atlas 连接串，部署时在 Dashboard 填
+        sync: false
+      - key: DASHSCOPE_API_KEY    # 通义千问 API-KEY（语音解析），部署时填
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: QWEN_MODEL
+        value: qwen-turbo
+      - key: MOCK_OTP
+        value: "true"
