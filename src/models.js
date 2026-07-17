@@ -9,6 +9,8 @@ const UserSchema = new Schema(
     avatarChar: { type: String, default: '' },
     otpCode: { type: String, default: null },
     otpExpires: { type: Date, default: null },
+    otpAttempts: { type: Number, default: 0 },
+    otpSentAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

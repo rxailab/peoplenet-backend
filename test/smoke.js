@@ -8,7 +8,7 @@ async function main() {
   const mem = await MongoMemoryServer.create();
   process.env.MONGODB_URI = mem.getUri('peoplenet');
   process.env.JWT_SECRET = 'test-secret';
-  process.env.MOCK_OTP = 'true';
+  process.env.MOCK_OTP = 'false';   // 强校验模式：错码拒绝，devCode 才能过
 
   const mongoose = require('mongoose');
   const { app } = require('../src/server');
@@ -38,14 +38,23 @@ async function main() {
   const h = await j('GET', '/health');
   check('health ok + mongo connected', h.body.ok === true && h.body.mongo === 'connected', h.body);
 
-  console.log('auth:');
+  console.log('auth (enforced OTP):');
   const sc = await j('POST', '/auth/send-code', { phone: '13800138000' });
-  check('send-code returns devCode', /^\d{6}$/.test(sc.body.devCode || ''), sc.body);
+  check('send-code returns devCode (nosms channel)', /^\d{6}$/.test(sc.body.devCode || '') && sc.body.channel === 'nosms', sc.body);
+  const resend = await j('POST', '/auth/send-code', { phone: '13800138000' });
+  check('resend within 60s → 429', resend.status === 429, resend.body);
   const bad = await j('POST', '/auth/verify', { phone: '13800138000', code: 'abc' });
   check('verify rejects bad code format', bad.status === 400);
-  const v = await j('POST', '/auth/verify', { phone: '13800138000', code: '123456', nickname: '阿哲' });
-  check('verify returns token', typeof v.body.token === 'string' && v.body.user.nickname === '阿哲', v.body);
+  const wrongCode = sc.body.devCode === '000000' ? '111111' : '000000';
+  const wrong = await j('POST', '/auth/verify', { phone: '13800138000', code: wrongCode });
+  check('wrong code → 401 + attemptsLeft', wrong.status === 401 && wrong.body.attemptsLeft === 4, wrong.body);
+  const v = await j('POST', '/auth/verify', { phone: '13800138000', code: sc.body.devCode, nickname: '阿哲' });
+  check('correct devCode → token + isNew', typeof v.body.token === 'string' && v.body.user.nickname === '阿哲' && v.body.isNew === true, v.body);
   const token = v.body.token;
+  const replay = await j('POST', '/auth/verify', { phone: '13800138000', code: sc.body.devCode });
+  check('code single-use (replay rejected)', replay.status === 400, replay.body);
+  const prof = await j('PUT', '/auth/profile', { nickname: '哲哥' }, token);
+  check('update profile nickname', prof.body.user && prof.body.user.nickname === '哲哥', prof.body);
   const noAuth = await j('GET', '/contacts');
   check('contacts requires auth', noAuth.status === 401);
 
@@ -78,8 +87,8 @@ async function main() {
   check('mark reminder done', rd.body.done === true);
 
   console.log('isolation:');
-  await j('POST', '/auth/send-code', { phone: '13900139000' });
-  const v2 = await j('POST', '/auth/verify', { phone: '13900139000', code: '654321' });
+  const sc2 = await j('POST', '/auth/send-code', { phone: '13900139000' });
+  const v2 = await j('POST', '/auth/verify', { phone: '13900139000', code: sc2.body.devCode });
   const other = await j('GET', '/contacts', null, v2.body.token);
   check('other user sees no contacts', other.body.length === 0);
 
