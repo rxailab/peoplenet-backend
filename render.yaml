@@ -10,11 +10,22 @@ services:
     envVars:
       - key: MONGODB_URI          # MongoDB Atlas 连接串，部署时在 Dashboard 填
         sync: false
-      - key: DASHSCOPE_API_KEY    # 通义千问 API-KEY（语音解析），部署时填
+      - key: DASHSCOPE_API_KEY    # 通义千问 API-KEY（语音解析 + ASR 中继），部署时填
         sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: QWEN_MODEL
         value: qwen-turbo
-      - key: MOCK_OTP
-        value: "true"
+      - key: MOCK_OTP        # 生产必须为 false：true 时任意 6 位验证码可登录任意手机号
+        value: "false"
+      # ---- 阿里云短信认证（登录验证码）；Key 在 Dashboard 填 ----
+      - key: ALIYUN_SMS_KEY_ID
+        sync: false
+      - key: ALIYUN_SMS_KEY_SECRET
+        sync: false
+      - key: ALIYUN_SMS_SIGN_NAME
+        value: 恒创联众
+      - key: ALIYUN_SMS_TEMPLATE_CODE
+        value: "100001"
+      - key: ALIYUN_SMS_TEMPLATE_JSON
+        value: '{"code":"${code}","min":"5"}'

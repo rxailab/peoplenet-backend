@@ -29,9 +29,15 @@ async function main() {
 
   console.log('auth:');
   const phone = '138' + String(Math.floor(10000000 + Math.random() * 89999999)); // 随机测试号，不污染真实账号
-  await j('POST', '/auth/send-code', { phone });
-  const v = await j('POST', '/auth/verify', { phone, code: '123456', nickname: '验收' });
-  check('login', typeof v.body.token === 'string', v.body);
+  const sc = await j('POST', '/auth/send-code', { phone });
+  // 强校验模式：未配短信通道时服务端回传 devCode；配了真实短信则无法自动接码，只能人工验收
+  const code = sc.body.devCode;
+  if (!code) {
+    console.error('  ✗ 无 devCode（已配置真实短信通道或发码失败），登录链路需人工验收', JSON.stringify(sc.body));
+    process.exit(1);
+  }
+  const v = await j('POST', '/auth/verify', { phone, code, nickname: '验收' });
+  check('login (devCode 强校验)', typeof v.body.token === 'string', v.body);
   const token = v.body.token;
 
   console.log('contacts:');

@@ -9,6 +9,12 @@ async function main() {
   process.env.MONGODB_URI = mem.getUri('peoplenet');
   process.env.JWT_SECRET = 'test-secret';
   process.env.MOCK_OTP = 'false';   // 强校验模式：错码拒绝，devCode 才能过
+  // 屏蔽真实短信通道：置空后 .env 里的配置不会生效（loader 不覆盖已有变量），
+  // 测试永远走 nosms/devCode，不消耗短信额度
+  process.env.ALIYUN_SMS_KEY_ID = '';
+  process.env.ALIYUN_SMS_KEY_SECRET = '';
+  process.env.UNISMS_ACCESS_KEY = '';
+  process.env.DASHSCOPE_API_KEY = '';
 
   const mongoose = require('mongoose');
   const { app } = require('../src/server');
@@ -57,6 +63,8 @@ async function main() {
   check('update profile nickname', prof.body.user && prof.body.user.nickname === '哲哥', prof.body);
   const noAuth = await j('GET', '/contacts');
   check('contacts requires auth', noAuth.status === 401);
+  const forged = await j('GET', '/contacts', null, token.slice(0, -2) + 'xx');
+  check('forged token → 401', forged.status === 401, forged.body);
 
   console.log('contacts:');
   const c1 = await j('POST', '/contacts', { name: '老周', rel: '老友', group: '朋友', tagline: '答应一起钓鱼' }, token);
@@ -75,6 +83,10 @@ async function main() {
   check('create receive, giftReturn pending', m2.body.giftReturn === 'pending');
   const badType = await j('POST', '/money', { contactId: c1.body._id, type: 'steal', amount: 1 }, token);
   check('invalid money type 400', badType.status === 400);
+  const negAmt = await j('POST', '/money', { contactId: c1.body._id, type: 'lend', amount: -50 }, token);
+  check('negative amount 400', negAmt.status === 400, negAmt.body);
+  const nanAmt = await j('POST', '/money', { contactId: c1.body._id, type: 'lend', amount: 'abc' }, token);
+  check('NaN amount 400', nanAmt.status === 400, nanAmt.body);
   const mu = await j('PUT', `/money/${m1.body._id}`, { loanStatus: 'paid' }, token);
   check('mark loan paid', mu.body.loanStatus === 'paid');
   const ml = await j('GET', `/money?contactId=${c1.body._id}`, null, token);

@@ -44,6 +44,11 @@ router.post('/parse', async (req, res, next) => {
 
     const { text, contacts, today } = req.body || {};
     if (!text || !text.trim()) return res.status(400).json({ error: 'text required' });
+    if (text.length > 2000) return res.status(400).json({ error: 'text too long' });
+    const names = (Array.isArray(contacts) ? contacts : [])
+      .filter((n) => typeof n === 'string' && n.trim())
+      .slice(0, 500)
+      .map((n) => n.slice(0, 20));
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 20000);
@@ -60,7 +65,7 @@ router.post('/parse', async (req, res, next) => {
           model: MODEL,
           temperature: 0.1,
           messages: [
-            { role: 'system', content: systemPrompt(contacts || [], today || '') },
+            { role: 'system', content: systemPrompt(names, String(today || '').slice(0, 40)) },
             { role: 'user', content: text },
           ],
         }),
