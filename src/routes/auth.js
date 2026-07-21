@@ -55,8 +55,13 @@ router.post('/send-code', sendCodeLimiter, async (req, res, next) => {
 
     const sent = await sendSms(phone, code).catch((e) => {
       console.error('[auth] sms error:', e.message);
-      return { channel: 'nosms' };   // 短信失败退回 devCode，登录不至于被卡死
+      return { channel: 'error', reason: e.message };
     });
+    // ⚠ 已配置真实通道但下发失败：绝不回退 devCode——否则探测者可拿到任意号码的有效验证码。
+    // （sendSms 只在已配置通道时才会抛错；未配置时干净地返回 nosms）
+    if (sent.channel === 'error') {
+      return res.status(502).json({ error: 'sms send failed' });
+    }
     // 短信认证服务（dypns）自行生成验证码 → 用它覆盖本地生成的那份哈希
     if (sent.code && sent.code !== code) {
       await User.findOneAndUpdate({ phone }, { otpCode: hashOtp(sent.code) });
