@@ -60,7 +60,9 @@ router.post('/send-code', sendCodeLimiter, async (req, res, next) => {
     // ⚠ 已配置真实通道但下发失败：绝不回退 devCode——否则探测者可拿到任意号码的有效验证码。
     // （sendSms 只在已配置通道时才会抛错；未配置时干净地返回 nosms）
     if (sent.channel === 'error') {
-      return res.status(502).json({ error: 'sms send failed' });
+      // 带上上游错误码（如 isv.SMS_TEMPLATE_ILLEGAL / biz.FREQUENCY）便于运维定位；错误码是公开文档，不含敏感信息
+      const code = (sent.reason || '').replace(/^sms failed:\s*/, '').slice(0, 60);
+      return res.status(502).json({ error: 'sms send failed', ...(code ? { upstream: code } : {}) });
     }
     // 短信认证服务（dypns）自行生成验证码 → 用它覆盖本地生成的那份哈希
     if (sent.code && sent.code !== code) {

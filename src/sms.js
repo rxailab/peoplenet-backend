@@ -75,7 +75,9 @@ function sign(params, secret) {
  * 调用方需用返回的 code 覆盖本地生成的验证码。
  */
 async function sendViaDypns(phone) {
-  const raw = process.env.ALIYUN_SMS_TEMPLATE_JSON || '{"code":"${code}"}';
+  // 短信认证服务的默认「登录/注册模板」（如 100001）含 ${code} 与 ${min} 两个变量，
+  // 未显式配置 TEMPLATE_JSON 时按默认模板补齐 min（与 ValidTime=300 秒一致）
+  const raw = process.env.ALIYUN_SMS_TEMPLATE_JSON || '{"code":"${code}","min":"5"}';
   const params = {
     AccessKeyId: process.env.ALIYUN_SMS_KEY_ID,
     Action: 'SendSmsVerifyCode',
