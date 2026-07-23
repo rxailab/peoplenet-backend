@@ -1,7 +1,7 @@
 /**
- * 短信通道（可插拔，按优先级）：
+ * 短信通道（可插拔）。优先级：阿里云（已配置时）→ UniSMS → nosms/devCode。
  *
- * ① UniSMS 合一短信（推荐，公共签名免审核）：
+ * ① UniSMS 合一短信（兜底通道；其公共签名可能失效，不再推荐）：
  *      UNISMS_ACCESS_KEY   AccessKey（简易鉴权模式）
  *      UNISMS_SIGNATURE    签名，默认「统一验证」（UniSMS 公共签名，无需审核）
  *      UNISMS_TEMPLATE_ID  模板，默认 pub_verif（公共验证码模板，变量 code）
@@ -118,8 +118,11 @@ async function sendViaDypns(phone) {
  *   发送失败 throws。
  */
 async function sendSms(phone, code) {
-  if (uniConfigured()) { await sendViaUniSms(phone, code); return { channel: 'sent' }; }
-  if (!aliyunConfigured()) return { channel: 'nosms' };
+  // 阿里云优先（有签名/模板的正式通道）；UniSMS 仅在未配置阿里云时兜底
+  if (!aliyunConfigured()) {
+    if (uniConfigured()) { await sendViaUniSms(phone, code); return { channel: 'sent' }; }
+    return { channel: 'nosms' };
+  }
   // 纯数字模板 Code = 短信认证服务（dypnsapi）
   if (/^\d+$/.test(process.env.ALIYUN_SMS_TEMPLATE_CODE || '')) return sendViaDypns(phone);
   const params = {
