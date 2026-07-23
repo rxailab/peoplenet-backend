@@ -22,9 +22,12 @@ function uniConfigured() {
   return !!process.env.UNISMS_ACCESS_KEY;
 }
 
+// 签名/模板号是项目固定配置（非机密），给默认值以免部署环境漏配；密钥必须来自环境变量
+const ALIYUN_SIGN_NAME = () => process.env.ALIYUN_SMS_SIGN_NAME || '恒创联众';
+const ALIYUN_TEMPLATE_CODE = () => process.env.ALIYUN_SMS_TEMPLATE_CODE || '100001';
+
 function aliyunConfigured() {
-  return !!(process.env.ALIYUN_SMS_KEY_ID && process.env.ALIYUN_SMS_KEY_SECRET &&
-    process.env.ALIYUN_SMS_SIGN_NAME && process.env.ALIYUN_SMS_TEMPLATE_CODE);
+  return !!(process.env.ALIYUN_SMS_KEY_ID && process.env.ALIYUN_SMS_KEY_SECRET);
 }
 
 function configured() {
@@ -85,11 +88,11 @@ async function sendViaDypns(phone) {
     Format: 'JSON',
     PhoneNumber: phone,
     ReturnVerifyCode: 'true',
-    SignName: process.env.ALIYUN_SMS_SIGN_NAME,
+    SignName: ALIYUN_SIGN_NAME(),
     SignatureMethod: 'HMAC-SHA1',
     SignatureNonce: crypto.randomUUID(),
     SignatureVersion: '1.0',
-    TemplateCode: process.env.ALIYUN_SMS_TEMPLATE_CODE,
+    TemplateCode: ALIYUN_TEMPLATE_CODE(),
     // ##code## 占位符 = 由短信认证服务生成验证码
     TemplateParam: raw.split('${code}').join('##code##'),
     Timestamp: new Date().toISOString().replace(/\.\d{3}/, ''),
@@ -124,18 +127,18 @@ async function sendSms(phone, code) {
     return { channel: 'nosms' };
   }
   // 纯数字模板 Code = 短信认证服务（dypnsapi）
-  if (/^\d+$/.test(process.env.ALIYUN_SMS_TEMPLATE_CODE || '')) return sendViaDypns(phone);
+  if (/^\d+$/.test(ALIYUN_TEMPLATE_CODE())) return sendViaDypns(phone);
   const params = {
     AccessKeyId: process.env.ALIYUN_SMS_KEY_ID,
     Action: 'SendSms',
     Format: 'JSON',
     PhoneNumbers: phone,
     RegionId: 'cn-hangzhou',
-    SignName: process.env.ALIYUN_SMS_SIGN_NAME,
+    SignName: ALIYUN_SIGN_NAME(),
     SignatureMethod: 'HMAC-SHA1',
     SignatureNonce: crypto.randomUUID(),
     SignatureVersion: '1.0',
-    TemplateCode: process.env.ALIYUN_SMS_TEMPLATE_CODE,
+    TemplateCode: ALIYUN_TEMPLATE_CODE(),
     TemplateParam: aliyunTemplateParam(code),
     Timestamp: new Date().toISOString().replace(/\.\d{3}/, ''),
     Version: '2017-05-25',

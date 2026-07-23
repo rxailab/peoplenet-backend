@@ -55,6 +55,8 @@ app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
     service: 'peoplenet-api',
+    // Render 注入 RENDER_GIT_COMMIT，用于确认线上跑的是哪个提交
+    commit: (process.env.RENDER_GIT_COMMIT || 'dev').slice(0, 7),
     mongo: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     time: new Date().toISOString(),
   });
